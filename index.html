@@ -11,77 +11,174 @@
       --text: #1c1e21;
       --muted: #6b7280;
       --line: #e3e5e9;
-      --accent: #2f5d50;
+      --gruen: #2f7d5d;
+      --rot: #b4442e;
+      --grau: #9ca3af;
     }
     * { box-sizing: border-box; }
     body {
-      margin: 0;
-      padding: 24px 16px 48px;
-      background: var(--bg);
-      color: var(--text);
+      margin: 0; padding: 24px 16px 48px;
+      background: var(--bg); color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
+      line-height: 1.5; -webkit-font-smoothing: antialiased;
     }
     .wrap { max-width: 460px; margin: 0 auto; }
     h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.02em; }
     .sub { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
     .card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 16px;
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 12px; padding: 20px; margin-bottom: 16px;
     }
     .card h2 {
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
-      margin: 0 0 14px;
-      font-weight: 600;
+      font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--muted); margin: 0 0 14px; font-weight: 600;
     }
     .status { display: flex; align-items: center; gap: 10px; font-size: 15px; }
-    .dot {
-      width: 9px; height: 9px; border-radius: 50%;
-      background: #d97706; flex: none;
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--grau); flex: none; }
+    .dot.ok  { background: var(--gruen); }
+    .dot.err { background: var(--rot); }
+
+    .fehler {
+      margin-top: 14px; padding: 12px 14px;
+      background: #fdf3f1; border: 1px solid #f0d5cd;
+      border-radius: 8px; font-size: 13px; color: #7a3122;
     }
-    .hint {
-      font-size: 13px; color: var(--muted);
-      margin: 12px 0 0; padding-top: 12px;
-      border-top: 1px solid var(--line);
+    .fehler b { display: block; margin-bottom: 4px; }
+
+    input[type=search] {
+      width: 100%; padding: 10px 12px; margin-bottom: 12px;
+      border: 1px solid var(--line); border-radius: 8px;
+      font-size: 16px; font-family: inherit; background: var(--bg);
     }
-    footer {
-      text-align: center; font-size: 12px;
-      color: var(--muted); margin-top: 28px;
+    ul { list-style: none; margin: 0; padding: 0; }
+    li {
+      display: flex; align-items: baseline; gap: 12px;
+      padding: 10px 2px; border-bottom: 1px solid var(--line);
     }
-    code {
+    li:last-child { border-bottom: none; }
+    .nr {
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 12px; background: var(--bg);
-      padding: 1px 5px; border-radius: 4px;
+      font-size: 13px; color: var(--muted);
+      min-width: 58px; flex: none;
     }
+    .name { font-size: 15px; }
+
+    button {
+      margin-top: 14px; padding: 9px 16px;
+      border: 1px solid var(--line); border-radius: 8px;
+      background: var(--card); color: var(--text);
+      font-size: 14px; font-family: inherit; cursor: pointer;
+    }
+    button:hover { background: var(--bg); }
+    footer { text-align: center; font-size: 12px; color: var(--muted); margin-top: 28px; }
   </style>
 </head>
 <body>
   <div class="wrap">
 
     <h1>Zeiterfassung</h1>
-    <p class="sub">Testseite &middot; Aufbau Schritt fu&#776;r Schritt</p>
+    <p class="sub">Testseite &middot; Verbindung zu FileMaker</p>
 
     <div class="card">
       <h2>Auftragsnummern</h2>
+
       <div class="status">
-        <span class="dot"></span>
-        <span>Noch keine Verbindung zu FileMaker</span>
+        <span class="dot" id="dot"></span>
+        <span id="statustext">Lade&hellip;</span>
       </div>
-      <p class="hint">
-        Hier erscheint gleich die Liste aus dem Layout <code>api_auftragsnr</code>,
-        sobald der Vermittler bei Supabase steht.
-      </p>
+
+      <div id="fehlerbox"></div>
+      <div id="listenbox"></div>
+
+      <button id="neu" style="display:none">Erneut versuchen</button>
     </div>
 
-    <footer>Wenn du das auf dem Handy siehst, funktioniert die Kette bis hierher.</footer>
+    <footer>Daten kommen aus dem FileMaker-Layout api_auftragsnr</footer>
 
   </div>
+
+<script>
+// Adresse unseres Vermittlers bei Supabase
+const VERMITTLER = "https://mawgxgqhnnzjdlmwedvm.supabase.co/functions/v1/auftragsnummern";
+
+const dot        = document.getElementById("dot");
+const statustext = document.getElementById("statustext");
+const fehlerbox  = document.getElementById("fehlerbox");
+const listenbox  = document.getElementById("listenbox");
+const neuKnopf   = document.getElementById("neu");
+
+let alleNummern = [];
+
+async function laden() {
+  dot.className = "dot";
+  statustext.textContent = "Lade…";
+  fehlerbox.innerHTML = "";
+  listenbox.innerHTML = "";
+  neuKnopf.style.display = "none";
+
+  try {
+    const antwort = await fetch(VERMITTLER);
+    const daten   = await antwort.json();
+
+    if (!daten.ok) return zeigeFehler(daten);
+
+    alleNummern = daten.auftragsnummern || [];
+    dot.className = "dot ok";
+    statustext.textContent = "Verbunden · " + alleNummern.length + " Auftragsnummern";
+    zeigeListe(alleNummern);
+
+  } catch (e) {
+    zeigeFehler({ schritt: "verbindung", hinweis: "Der Vermittler bei Supabase war nicht erreichbar." });
+  }
+}
+
+function zeigeFehler(daten) {
+  dot.className = "dot err";
+  statustext.textContent = "Keine Verbindung";
+  const wo = { netzwerk: "FileMaker antwortet nicht",
+               anmeldung: "Anmeldung bei FileMaker fehlgeschlagen",
+               "daten-abruf": "Daten konnten nicht gelesen werden",
+               konfiguration: "Konfiguration unvollständig",
+               verbindung: "Supabase nicht erreichbar" }[daten.schritt] || "Fehler";
+
+  fehlerbox.innerHTML =
+    '<div class="fehler"><b>' + wo + '</b>' +
+    (daten.hinweis || daten.fehler || "") + '</div>';
+  neuKnopf.style.display = "inline-block";
+}
+
+function zeigeListe(nummern) {
+  if (!nummern.length) {
+    listenbox.innerHTML = '<p class="sub" style="margin:14px 0 0">Keine Einträge gefunden.</p>';
+    return;
+  }
+
+  listenbox.innerHTML =
+    '<input type="search" id="filter" placeholder="Suchen…">' +
+    '<ul id="liste"></ul>';
+
+  zeichne(nummern);
+
+  document.getElementById("filter").addEventListener("input", (e) => {
+    const s = e.target.value.toLowerCase();
+    zeichne(alleNummern.filter(a =>
+      a.id.toLowerCase().includes(s) || a.name.toLowerCase().includes(s)));
+  });
+}
+
+function zeichne(nummern) {
+  document.getElementById("liste").innerHTML = nummern.map(a =>
+    '<li><span class="nr">' + escape2(a.id) + '</span>' +
+    '<span class="name">' + escape2(a.name) + '</span></li>').join("");
+}
+
+function escape2(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
+neuKnopf.addEventListener("click", laden);
+laden();
+</script>
 </body>
 </html>
