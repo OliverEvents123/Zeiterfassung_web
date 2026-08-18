@@ -14,6 +14,7 @@
       --gruen: #2f7d5d;
       --rot: #b4442e;
       --grau: #9ca3af;
+      --akzent: #2f5d50;
     }
     * { box-sizing: border-box; }
     body {
@@ -33,6 +34,23 @@
       font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em;
       color: var(--muted); margin: 0 0 14px; font-weight: 600;
     }
+
+    /* Jahr-Umschalter */
+    .jahre { display: flex; gap: 8px; margin-bottom: 16px; }
+    .jahr {
+      flex: 1; padding: 11px 8px;
+      border: 1px solid var(--line); border-radius: 9px;
+      background: var(--card); color: var(--text);
+      font-size: 14px; font-family: inherit; cursor: pointer;
+      line-height: 1.25; text-align: center;
+    }
+    .jahr small { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .jahr:hover { background: var(--bg); }
+    .jahr.aktiv {
+      background: var(--akzent); border-color: var(--akzent); color: #fff;
+    }
+    .jahr.aktiv small { color: rgba(255,255,255,.75); }
+
     .status { display: flex; align-items: center; gap: 10px; font-size: 15px; }
     .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--grau); flex: none; }
     .dot.ok  { background: var(--gruen); }
@@ -46,7 +64,7 @@
     .fehler b { display: block; margin-bottom: 4px; }
 
     input[type=search] {
-      width: 100%; padding: 10px 12px; margin-bottom: 12px;
+      width: 100%; padding: 10px 12px; margin: 14px 0 4px;
       border: 1px solid var(--line); border-radius: 8px;
       font-size: 16px; font-family: inherit; background: var(--bg);
     }
@@ -59,17 +77,21 @@
     .nr {
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 13px; color: var(--muted);
-      min-width: 58px; flex: none;
+      min-width: 52px; flex: none;
     }
-    .name { font-size: 15px; }
+    .name { font-size: 15px; flex: 1; }
+    .tag {
+      font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
+      color: var(--akzent); border: 1px solid var(--akzent);
+      border-radius: 4px; padding: 1px 5px; flex: none; opacity: .75;
+    }
 
-    button {
+    button.neu {
       margin-top: 14px; padding: 9px 16px;
       border: 1px solid var(--line); border-radius: 8px;
       background: var(--card); color: var(--text);
       font-size: 14px; font-family: inherit; cursor: pointer;
     }
-    button:hover { background: var(--bg); }
     footer { text-align: center; font-size: 12px; color: var(--muted); margin-top: 28px; }
   </style>
 </head>
@@ -82,6 +104,8 @@
     <div class="card">
       <h2>Auftragsnummern</h2>
 
+      <div class="jahre" id="jahre"></div>
+
       <div class="status">
         <span class="dot" id="dot"></span>
         <span id="statustext">Lade&hellip;</span>
@@ -90,7 +114,7 @@
       <div id="fehlerbox"></div>
       <div id="listenbox"></div>
 
-      <button id="neu" style="display:none">Erneut versuchen</button>
+      <button class="neu" id="neu" style="display:none">Erneut versuchen</button>
     </div>
 
     <footer>Daten kommen aus dem FileMaker-Layout api_auftragsnr</footer>
@@ -98,17 +122,42 @@
   </div>
 
 <script>
-// Adresse unseres Vermittlers bei Supabase
 const VERMITTLER = "https://mawgxgqhnnzjdlmwedvm.supabase.co/functions/v1/auftragsnummern";
 
+const JAHR_JETZT  = new Date().getFullYear();
+const JAHR_NAECHST = JAHR_JETZT + 1;
+
+let gewaehltesJahr = JAHR_JETZT;
+let alleNummern = [];
+
+const jahreBox   = document.getElementById("jahre");
 const dot        = document.getElementById("dot");
 const statustext = document.getElementById("statustext");
 const fehlerbox  = document.getElementById("fehlerbox");
 const listenbox  = document.getElementById("listenbox");
 const neuKnopf   = document.getElementById("neu");
 
-let alleNummern = [];
+// ---- Jahr-Umschalter aufbauen ----
+function zeichneJahre() {
+  jahreBox.innerHTML =
+    knopf(JAHR_JETZT,  "Aktuelles Jahr") +
+    knopf(JAHR_NAECHST, "Nächstes Jahr");
 
+  jahreBox.querySelectorAll(".jahr").forEach(b =>
+    b.addEventListener("click", () => {
+      gewaehltesJahr = Number(b.dataset.jahr);
+      zeichneJahre();
+      laden();
+    }));
+}
+
+function knopf(jahr, beschriftung) {
+  const aktiv = jahr === gewaehltesJahr ? " aktiv" : "";
+  return '<button class="jahr' + aktiv + '" data-jahr="' + jahr + '">' +
+         jahr + '<small>' + beschriftung + '</small></button>';
+}
+
+// ---- Daten holen ----
 async function laden() {
   dot.className = "dot";
   statustext.textContent = "Lade…";
@@ -117,14 +166,16 @@ async function laden() {
   neuKnopf.style.display = "none";
 
   try {
-    const antwort = await fetch(VERMITTLER);
+    const antwort = await fetch(VERMITTLER + "?jahr=" + gewaehltesJahr);
     const daten   = await antwort.json();
 
     if (!daten.ok) return zeigeFehler(daten);
 
     alleNummern = daten.auftragsnummern || [];
     dot.className = "dot ok";
-    statustext.textContent = "Verbunden · " + alleNummern.length + " Auftragsnummern";
+    statustext.textContent =
+      alleNummern.length + " Auftragsnummern · " + daten.jahr +
+      (daten.uebergreifend ? " + " + daten.uebergreifend + " übergreifend" : "");
     zeigeListe(alleNummern);
 
   } catch (e) {
@@ -139,17 +190,17 @@ function zeigeFehler(daten) {
                anmeldung: "Anmeldung bei FileMaker fehlgeschlagen",
                "daten-abruf": "Daten konnten nicht gelesen werden",
                konfiguration: "Konfiguration unvollständig",
+               anfrage: "Ungültige Anfrage",
                verbindung: "Supabase nicht erreichbar" }[daten.schritt] || "Fehler";
 
   fehlerbox.innerHTML =
-    '<div class="fehler"><b>' + wo + '</b>' +
-    (daten.hinweis || daten.fehler || "") + '</div>';
+    '<div class="fehler"><b>' + wo + '</b>' + (daten.hinweis || daten.fehler || "") + '</div>';
   neuKnopf.style.display = "inline-block";
 }
 
 function zeigeListe(nummern) {
   if (!nummern.length) {
-    listenbox.innerHTML = '<p class="sub" style="margin:14px 0 0">Keine Einträge gefunden.</p>';
+    listenbox.innerHTML = '<p class="sub" style="margin:14px 0 0">Keine Einträge für ' + gewaehltesJahr + '.</p>';
     return;
   }
 
@@ -168,16 +219,19 @@ function zeigeListe(nummern) {
 
 function zeichne(nummern) {
   document.getElementById("liste").innerHTML = nummern.map(a =>
-    '<li><span class="nr">' + escape2(a.id) + '</span>' +
-    '<span class="name">' + escape2(a.name) + '</span></li>').join("");
+    '<li><span class="nr">' + esc(a.id) + '</span>' +
+    '<span class="name">' + esc(a.name) + '</span>' +
+    (a.immer ? '<span class="tag">immer</span>' : '') +
+    '</li>').join("");
 }
 
-function escape2(s) {
+function esc(s) {
   return String(s).replace(/[&<>"']/g, c =>
     ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 }
 
 neuKnopf.addEventListener("click", laden);
+zeichneJahre();
 laden();
 </script>
 </body>
