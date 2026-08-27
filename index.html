@@ -135,7 +135,27 @@
       <h1>Zeiterfassung</h1>
       <p class="sub" id="wer">&nbsp;</p>
     </div>
-    <button class="abmelden" id="abmelden">Abmelden</button>
+    <div style="text-align:right;white-space:nowrap">
+      <button class="abmelden" id="pw-link">Passwort</button>
+      <span style="color:var(--line)">|</span>
+      <button class="abmelden" id="abmelden">Abmelden</button>
+    </div>
+  </div>
+
+  <div class="card" id="pw-card" style="display:none">
+    <h2>Passwort ändern</h2>
+    <div id="pw-meldung"></div>
+    <div class="reihe"><div>
+      <label for="pw-neu">Neues Passwort</label>
+      <input type="password" id="pw-neu" autocomplete="new-password">
+    </div></div>
+    <div class="reihe"><div>
+      <label for="pw-neu2">Nochmal zur Kontrolle</label>
+      <input type="password" id="pw-neu2" autocomplete="new-password">
+    </div></div>
+    <p class="hinweis" style="margin:0 0 14px">Mindestens 8 Zeichen.</p>
+    <button class="knopf" id="pw-speichern">Speichern</button>
+    <button class="klein" id="pw-abbrechen" style="margin-top:8px">Abbrechen</button>
   </div>
 
   <div id="meldung"></div>
@@ -554,6 +574,49 @@ $("anmelden").addEventListener("click", async () => {
   $("anmelden").disabled = false;
 });
 $("passwort").addEventListener("keydown", e => { if (e.key === "Enter") $("anmelden").click(); });
+
+// ═══════════ Passwort ändern ═══════════
+function pwMelde(typ, text) {
+  $("pw-meldung").innerHTML = typ
+    ? '<div class="melde ' + typ + '">' + esc(text) + '</div>' : "";
+}
+
+$("pw-link").addEventListener("click", () => {
+  const auf = $("pw-card").style.display !== "none";
+  $("pw-card").style.display = auf ? "none" : "";
+  if (!auf) { pwMelde("", ""); $("pw-neu").value = ""; $("pw-neu2").value = ""; $("pw-neu").focus(); }
+});
+
+$("pw-abbrechen").addEventListener("click", () => { $("pw-card").style.display = "none"; });
+
+$("pw-speichern").addEventListener("click", async () => {
+  const a = $("pw-neu").value, b = $("pw-neu2").value;
+  if (a.length < 8)  return pwMelde("err", "Das Passwort braucht mindestens 8 Zeichen.");
+  if (a !== b)       return pwMelde("err", "Die beiden Eingaben stimmen nicht überein.");
+
+  $("pw-speichern").disabled = true;
+  $("pw-speichern").textContent = "Wird gespeichert…";
+  try {
+    const r = await api(SUPABASE_URL + "/auth/v1/user", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: a }),
+    });
+    const d = await r.json();
+    if (r.ok) {
+      pwMelde("ok", "Passwort geändert. Beim nächsten Anmelden gilt das neue.");
+      $("pw-neu").value = ""; $("pw-neu2").value = "";
+    } else {
+      pwMelde("err", d.msg || d.error_description || d.message || "Ändern fehlgeschlagen.");
+    }
+  } catch (e) {
+    pwMelde("err", String(e.message || e));
+  }
+  $("pw-speichern").disabled = false;
+  $("pw-speichern").textContent = "Speichern";
+});
+
+$("pw-neu2").addEventListener("keydown", e => { if (e.key === "Enter") $("pw-speichern").click(); });
 
 $("abmelden").addEventListener("click", abmelden);
 $("datum").addEventListener("change", ladeTag);
