@@ -6,233 +6,370 @@
   <title>Zeiterfassung</title>
   <style>
     :root {
-      --bg: #f4f5f7;
-      --card: #ffffff;
-      --text: #1c1e21;
-      --muted: #6b7280;
-      --line: #e3e5e9;
-      --gruen: #2f7d5d;
-      --rot: #b4442e;
-      --grau: #9ca3af;
-      --akzent: #2f5d50;
+      --bg:#f4f5f7; --card:#fff; --text:#1c1e21; --muted:#6b7280;
+      --line:#e3e5e9; --gruen:#2f7d5d; --rot:#b4442e; --akzent:#2f5d50;
     }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; padding: 24px 16px 48px;
-      background: var(--bg); color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      line-height: 1.5; -webkit-font-smoothing: antialiased;
+    *{box-sizing:border-box}
+    body{
+      margin:0; padding:24px 16px 64px; background:var(--bg); color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      line-height:1.5; -webkit-font-smoothing:antialiased;
     }
-    .wrap { max-width: 460px; margin: 0 auto; }
-    h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.02em; }
-    .sub { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
-    .card {
-      background: var(--card); border: 1px solid var(--line);
-      border-radius: 12px; padding: 20px; margin-bottom: 16px;
+    .wrap{max-width:460px;margin:0 auto}
+    h1{font-size:26px;margin:0 0 4px;letter-spacing:-.02em}
+    .sub{color:var(--muted);font-size:14px;margin:0 0 24px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:16px}
+    .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 14px;font-weight:600}
+
+    label{display:block;font-size:13px;color:var(--muted);margin:0 0 4px}
+    input,select,textarea{
+      width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;
+      font-size:16px;font-family:inherit;background:var(--card);color:var(--text)
     }
-    .card h2 {
-      font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em;
-      color: var(--muted); margin: 0 0 14px; font-weight: 600;
+    textarea{resize:vertical;min-height:60px}
+    .reihe{display:flex;gap:10px;margin-bottom:14px}
+    .reihe > div{flex:1;min-width:0}
+
+    .art{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:18px}
+    .art button{
+      padding:10px 4px;border:1px solid var(--line);border-radius:9px;background:var(--card);
+      color:var(--text);font-size:13px;font-family:inherit;cursor:pointer
+    }
+    .art button.aktiv{background:var(--akzent);border-color:var(--akzent);color:#fff}
+
+    /* ---- Auftragszeile ---- */
+    .zeile{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--bg)}
+    .zeile .kopf{display:flex;gap:8px;align-items:flex-start}
+    .suchfeld{position:relative;flex:1;min-width:0}
+    .suchfeld input{background:var(--card)}
+    .weg{
+      flex:none;width:38px;height:42px;border:1px solid var(--line);border-radius:8px;
+      background:var(--card);color:var(--muted);cursor:pointer;font-size:17px;line-height:1
+    }
+    .nrname{display:block;font-size:12px;color:var(--akzent);margin:5px 2px 0;min-height:16px}
+    .unten{display:flex;gap:8px;margin-top:10px}
+    .unten .std{flex:0 0 84px;text-align:center}
+    .unten .txt{flex:1;min-width:0}
+
+    /* ---- Vorschlagsliste ---- */
+    .vorschlag{
+      position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;
+      background:var(--card);border:1px solid var(--line);border-radius:8px;
+      box-shadow:0 6px 20px rgba(0,0,0,.10);max-height:230px;overflow-y:auto;display:none
+    }
+    .vs{padding:9px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--line)}
+    .vs:last-child{border-bottom:none}
+    .vs:hover,.vs.hell{background:var(--bg)}
+    .vs b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:var(--muted);margin-right:8px}
+
+    .rest{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);
+      padding-top:12px;margin-top:6px;border-top:1px solid var(--line)}
+    .rest b{color:var(--text);font-variant-numeric:tabular-nums}
+    .rest.warn b{color:var(--rot)}
+
+    .knopf{
+      width:100%;padding:14px;border:none;border-radius:9px;background:var(--akzent);
+      color:#fff;font-size:16px;font-family:inherit;cursor:pointer;margin-top:6px
+    }
+    .knopf:disabled{opacity:.5;cursor:default}
+    .klein{
+      width:auto;padding:8px 14px;background:var(--card);color:var(--text);
+      border:1px solid var(--line);font-size:14px;border-radius:8px;cursor:pointer
     }
 
-    /* Jahr-Umschalter */
-    .jahre { display: flex; gap: 8px; margin-bottom: 16px; }
-    .jahr {
-      flex: 1; padding: 11px 8px;
-      border: 1px solid var(--line); border-radius: 9px;
-      background: var(--card); color: var(--text);
-      font-size: 14px; font-family: inherit; cursor: pointer;
-      line-height: 1.25; text-align: center;
-    }
-    .jahr small { display: block; font-size: 11px; color: var(--muted); margin-top: 2px; }
-    .jahr:hover { background: var(--bg); }
-    .jahr.aktiv {
-      background: var(--akzent); border-color: var(--akzent); color: #fff;
-    }
-    .jahr.aktiv small { color: rgba(255,255,255,.75); }
+    .melde{padding:12px 14px;border-radius:8px;font-size:14px;margin-bottom:16px}
+    .melde.ok{background:#eef6f1;border:1px solid #cfe4d8;color:#1f5741}
+    .melde.err{background:#fdf3f1;border:1px solid #f0d5cd;color:#7a3122}
+    .melde b{display:block;margin-bottom:3px}
 
-    .status { display: flex; align-items: center; gap: 10px; font-size: 15px; }
-    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--grau); flex: none; }
-    .dot.ok  { background: var(--gruen); }
-    .dot.err { background: var(--rot); }
-
-    .fehler {
-      margin-top: 14px; padding: 12px 14px;
-      background: #fdf3f1; border: 1px solid #f0d5cd;
-      border-radius: 8px; font-size: 13px; color: #7a3122;
-    }
-    .fehler b { display: block; margin-bottom: 4px; }
-
-    input[type=search] {
-      width: 100%; padding: 10px 12px; margin: 14px 0 4px;
-      border: 1px solid var(--line); border-radius: 8px;
-      font-size: 16px; font-family: inherit; background: var(--bg);
-    }
-    ul { list-style: none; margin: 0; padding: 0; }
-    li {
-      display: flex; align-items: baseline; gap: 12px;
-      padding: 10px 2px; border-bottom: 1px solid var(--line);
-    }
-    li:last-child { border-bottom: none; }
-    .nr {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 13px; color: var(--muted);
-      min-width: 52px; flex: none;
-    }
-    .name { font-size: 15px; flex: 1; }
-    .tag {
-      font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
-      color: var(--akzent); border: 1px solid var(--akzent);
-      border-radius: 4px; padding: 1px 5px; flex: none; opacity: .75;
-    }
-
-    button.neu {
-      margin-top: 14px; padding: 9px 16px;
-      border: 1px solid var(--line); border-radius: 8px;
-      background: var(--card); color: var(--text);
-      font-size: 14px; font-family: inherit; cursor: pointer;
-    }
-    footer { text-align: center; font-size: 12px; color: var(--muted); margin-top: 28px; }
+    .hinweis{font-size:13px;color:var(--muted);margin:10px 0 0}
+    footer{text-align:center;font-size:12px;color:var(--muted);margin-top:28px}
   </style>
 </head>
 <body>
-  <div class="wrap">
+<div class="wrap">
 
-    <h1>Zeiterfassung</h1>
-    <p class="sub">Testseite &middot; Verbindung zu FileMaker</p>
+  <h1>Zeiterfassung</h1>
+  <p class="sub" id="kopf">Testbetrieb &middot; bucht auf Mitarbeiter 201</p>
 
-    <div class="card">
-      <h2>Auftragsnummern</h2>
+  <div id="meldung"></div>
 
-      <div class="jahre" id="jahre"></div>
+  <div class="card">
+    <h2>Art</h2>
+    <div class="art" id="art"></div>
 
-      <div class="status">
-        <span class="dot" id="dot"></span>
-        <span id="statustext">Lade&hellip;</span>
+    <div id="block-arbeit">
+      <div class="reihe">
+        <div><label for="datum">Datum</label><input type="date" id="datum"></div>
       </div>
-
-      <div id="fehlerbox"></div>
-      <div id="listenbox"></div>
-
-      <button class="neu" id="neu" style="display:none">Erneut versuchen</button>
+      <div class="reihe">
+        <div><label for="beginn">Beginn</label><input type="time" id="beginn" value="08:00"></div>
+        <div><label for="ende">Ende</label><input type="time" id="ende" value="17:00"></div>
+        <div>
+          <label for="pause">Pause</label>
+          <select id="pause">
+            <option value="0:00">keine</option>
+            <option value="0:15">15 Min</option>
+            <option value="0:30">30 Min</option>
+            <option value="0:45">45 Min</option>
+            <option value="1:00" selected>60 Min</option>
+            <option value="1:30">90 Min</option>
+          </select>
+        </div>
+      </div>
     </div>
 
-    <footer>Daten kommen aus dem FileMaker-Layout api_auftragsnr</footer>
-
+    <div id="block-sonder" style="display:none">
+      <div class="reihe">
+        <div><label for="von">Von</label><input type="date" id="von"></div>
+        <div><label for="bis">Bis</label><input type="date" id="bis"></div>
+      </div>
+      <p class="hinweis">
+        Wird automatisch mit 08:00&ndash;16:30 ohne Pause erfasst.
+        Samstage und Sonntage werden übersprungen.
+      </p>
+    </div>
   </div>
 
+  <div class="card" id="card-auftraege">
+    <h2>Aufteilung auf Auftragsnummern</h2>
+    <div id="zeilen"></div>
+    <button class="klein" id="plus">+ Zeile hinzufügen</button>
+    <div class="rest" id="rest"><span>Zu verteilen</span><b>&ndash;</b></div>
+
+    <div style="margin-top:16px">
+      <label for="taetigkeit">Tätigkeiten (wenn nicht auf Auftrag gebucht)</label>
+      <textarea id="taetigkeit" placeholder="optional"></textarea>
+    </div>
+  </div>
+
+  <button class="knopf" id="senden">Übermitteln</button>
+
+  <footer>Daten gehen direkt nach FileMaker</footer>
+</div>
+
 <script>
-const VERMITTLER = "https://mawgxgqhnnzjdlmwedvm.supabase.co/functions/v1/auftragsnummern";
+const BASIS       = "https://mawgxgqhnnzjdlmwedvm.supabase.co/functions/v1";
+const F_NUMMERN   = BASIS + "/auftragsnummern";
+const F_SCHREIBEN = BASIS + "/zeit-schreiben";
 
-const JAHR_JETZT  = new Date().getFullYear();
-const JAHR_NAECHST = JAHR_JETZT + 1;
+const ARTEN = ["Arbeit", "Ferien", "Krank", "Militär"];
+let art = "Arbeit";
+let nummern = [];
 
-let gewaehltesJahr = JAHR_JETZT;
-let alleNummern = [];
-
-const jahreBox   = document.getElementById("jahre");
-const dot        = document.getElementById("dot");
-const statustext = document.getElementById("statustext");
-const fehlerbox  = document.getElementById("fehlerbox");
-const listenbox  = document.getElementById("listenbox");
-const neuKnopf   = document.getElementById("neu");
-
-// ---- Jahr-Umschalter aufbauen ----
-function zeichneJahre() {
-  jahreBox.innerHTML =
-    knopf(JAHR_JETZT,  "Aktuelles Jahr") +
-    knopf(JAHR_NAECHST, "Nächstes Jahr");
-
-  jahreBox.querySelectorAll(".jahr").forEach(b =>
-    b.addEventListener("click", () => {
-      gewaehltesJahr = Number(b.dataset.jahr);
-      zeichneJahre();
-      laden();
-    }));
-}
-
-function knopf(jahr, beschriftung) {
-  const aktiv = jahr === gewaehltesJahr ? " aktiv" : "";
-  return '<button class="jahr' + aktiv + '" data-jahr="' + jahr + '">' +
-         jahr + '<small>' + beschriftung + '</small></button>';
-}
-
-// ---- Daten holen ----
-async function laden() {
-  dot.className = "dot";
-  statustext.textContent = "Lade…";
-  fehlerbox.innerHTML = "";
-  listenbox.innerHTML = "";
-  neuKnopf.style.display = "none";
-
-  try {
-    const antwort = await fetch(VERMITTLER + "?jahr=" + gewaehltesJahr);
-    const daten   = await antwort.json();
-
-    if (!daten.ok) return zeigeFehler(daten);
-
-    alleNummern = daten.auftragsnummern || [];
-    dot.className = "dot ok";
-    statustext.textContent =
-      alleNummern.length + " Auftragsnummern · " + daten.jahr +
-      (daten.uebergreifend ? " + " + daten.uebergreifend + " übergreifend" : "");
-    zeigeListe(alleNummern);
-
-  } catch (e) {
-    zeigeFehler({ schritt: "verbindung", hinweis: "Der Vermittler bei Supabase war nicht erreichbar." });
-  }
-}
-
-function zeigeFehler(daten) {
-  dot.className = "dot err";
-  statustext.textContent = "Keine Verbindung";
-  const wo = { netzwerk: "FileMaker antwortet nicht",
-               anmeldung: "Anmeldung bei FileMaker fehlgeschlagen",
-               "daten-abruf": "Daten konnten nicht gelesen werden",
-               konfiguration: "Konfiguration unvollständig",
-               anfrage: "Ungültige Anfrage",
-               verbindung: "Supabase nicht erreichbar" }[daten.schritt] || "Fehler";
-
-  fehlerbox.innerHTML =
-    '<div class="fehler"><b>' + wo + '</b>' + (daten.hinweis || daten.fehler || "") + '</div>';
-  neuKnopf.style.display = "inline-block";
-}
-
-function zeigeListe(nummern) {
-  if (!nummern.length) {
-    listenbox.innerHTML = '<p class="sub" style="margin:14px 0 0">Keine Einträge für ' + gewaehltesJahr + '.</p>';
-    return;
-  }
-
-  listenbox.innerHTML =
-    '<input type="search" id="filter" placeholder="Suchen…">' +
-    '<ul id="liste"></ul>';
-
-  zeichne(nummern);
-
-  document.getElementById("filter").addEventListener("input", (e) => {
-    const s = e.target.value.toLowerCase();
-    zeichne(alleNummern.filter(a =>
-      a.id.toLowerCase().includes(s) || a.name.toLowerCase().includes(s)));
-  });
-}
-
-function zeichne(nummern) {
-  document.getElementById("liste").innerHTML = nummern.map(a =>
-    '<li><span class="nr">' + esc(a.id) + '</span>' +
-    '<span class="name">' + esc(a.name) + '</span>' +
-    (a.immer ? '<span class="tag">immer</span>' : '') +
-    '</li>').join("");
-}
+const $ = (id) => document.getElementById(id);
 
 function esc(s) {
-  return String(s).replace(/[&<>"']/g, c =>
-    ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c =>
+    ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 }
 
-neuKnopf.addEventListener("click", laden);
-zeichneJahre();
-laden();
+// ---------- Art ----------
+function zeichneArt() {
+  $("art").innerHTML = ARTEN.map(a =>
+    '<button data-art="' + a + '" class="' + (a === art ? "aktiv" : "") + '">' + a + '</button>').join("");
+  $("art").querySelectorAll("button").forEach(b =>
+    b.addEventListener("click", () => { art = b.dataset.art; zeichneArt(); umschalten(); }));
+}
+
+function umschalten() {
+  const sonder = art !== "Arbeit";
+  $("block-arbeit").style.display   = sonder ? "none" : "";
+  $("block-sonder").style.display   = sonder ? "" : "none";
+  $("card-auftraege").style.display = sonder ? "none" : "";
+  $("kopf").textContent = sonder
+    ? "Testbetrieb · " + art + " eintragen"
+    : "Testbetrieb · bucht auf Mitarbeiter 201";
+}
+
+// ---------- Auftragsnummern ----------
+async function ladeNummern() {
+  try {
+    const r = await fetch(F_NUMMERN + "?jahr=" + new Date().getFullYear());
+    const d = await r.json();
+    nummern = d.ok ? (d.auftragsnummern || []) : [];
+  } catch (e) { nummern = []; }
+  if (!document.querySelector("#zeilen .zeile")) neueZeile();
+}
+
+function nameZu(id) {
+  const t = nummern.find(a => a.id === String(id).trim());
+  return t ? t.name : "";
+}
+
+// ---------- Auftragszeile mit Suche ----------
+function neueZeile() {
+  const div = document.createElement("div");
+  div.className = "zeile";
+  div.innerHTML =
+    '<div class="kopf">' +
+      '<div class="suchfeld">' +
+        '<input class="nr" placeholder="Auftragsnummer oder Name" autocomplete="off">' +
+        '<div class="vorschlag"></div>' +
+      '</div>' +
+      '<button class="weg" title="Zeile entfernen">&times;</button>' +
+    '</div>' +
+    '<small class="nrname"></small>' +
+    '<div class="unten">' +
+      '<input class="std" placeholder="1:30" inputmode="decimal">' +
+      '<input class="txt" placeholder="Beschreibung">' +
+    '</div>';
+
+  div.querySelector(".weg").addEventListener("click", () => { div.remove(); rechne(); });
+  div.querySelector(".std").addEventListener("input", rechne);
+  suche(div.querySelector(".nr"), div.querySelector(".vorschlag"), div.querySelector(".nrname"));
+
+  $("zeilen").appendChild(div);
+  rechne();
+}
+
+// Tippen → Vorschläge nach Nummer ODER Name → auswählen → Nummer steht drin
+function suche(feld, box, namensZeile) {
+  let treffer = [];
+  let markiert = -1;
+
+  function schliessen() { box.style.display = "none"; markiert = -1; }
+
+  function zeichnen() {
+    box.innerHTML = treffer.map((a, i) =>
+      '<div class="vs' + (i === markiert ? " hell" : "") + '" data-id="' + esc(a.id) + '">' +
+      '<b>' + esc(a.id) + '</b>' + esc(a.name) + '</div>').join("");
+    box.style.display = treffer.length ? "block" : "none";
+  }
+
+  function uebernehmen(id) {
+    feld.value = id;
+    namensZeile.textContent = nameZu(id);
+    schliessen();
+  }
+
+  feld.addEventListener("input", () => {
+    const q = feld.value.trim().toLowerCase();
+    namensZeile.textContent = nameZu(feld.value);
+    if (!q) { treffer = []; schliessen(); return; }
+    treffer = nummern.filter(a =>
+      a.id.toLowerCase().includes(q) || a.name.toLowerCase().includes(q)).slice(0, 12);
+    markiert = treffer.length ? 0 : -1;
+    zeichnen();
+  });
+
+  feld.addEventListener("keydown", (e) => {
+    if (box.style.display !== "block") return;
+    if (e.key === "ArrowDown") { e.preventDefault(); markiert = Math.min(markiert + 1, treffer.length - 1); zeichnen(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); markiert = Math.max(markiert - 1, 0); zeichnen(); }
+    else if (e.key === "Enter") { e.preventDefault(); if (treffer[markiert]) uebernehmen(treffer[markiert].id); }
+    else if (e.key === "Escape") schliessen();
+  });
+
+  // mousedown statt click, damit die Auswahl nicht vom blur weggeräumt wird
+  box.addEventListener("mousedown", (e) => {
+    const el = e.target.closest(".vs");
+    if (!el) return;
+    e.preventDefault();
+    uebernehmen(el.dataset.id);
+  });
+
+  feld.addEventListener("blur", () => setTimeout(schliessen, 120));
+}
+
+// ---------- Rechnen ----------
+function minuten(s) {
+  if (!s) return 0;
+  s = String(s).trim().replace(",", ".");
+  if (s.includes(":")) {
+    const [h, m] = s.split(":");
+    return (parseInt(h, 10) || 0) * 60 + (parseInt(m, 10) || 0);
+  }
+  const d = parseFloat(s);
+  return isNaN(d) ? 0 : Math.round(d * 60);
+}
+
+function alsZeit(min) {
+  const v = min < 0 ? "-" : "";
+  min = Math.abs(min);
+  return v + Math.floor(min / 60) + ":" + String(min % 60).padStart(2, "0");
+}
+
+function rechne() {
+  const arbeit = minuten($("ende").value) - minuten($("beginn").value) - minuten($("pause").value);
+  let verteilt = 0;
+  document.querySelectorAll("#zeilen .std").forEach(i => verteilt += minuten(i.value));
+  const rest = arbeit - verteilt;
+
+  $("rest").className = "rest" + (rest < 0 ? " warn" : "");
+  $("rest").innerHTML =
+    "<span>Arbeitszeit " + alsZeit(Math.max(arbeit, 0)) + " · verteilt " + alsZeit(verteilt) + "</span>" +
+    "<b>" + (rest === 0 ? "vollständig" : alsZeit(rest) + (rest < 0 ? " zu viel" : " offen")) + "</b>";
+}
+
+// ---------- Senden ----------
+async function senden() {
+  melde("", "", "");
+  $("senden").disabled = true;
+  $("senden").textContent = "Wird übermittelt…";
+
+  const daten = { art: art };
+
+  if (art === "Arbeit") {
+    daten.datum = $("datum").value;
+    daten.beginn = $("beginn").value;
+    daten.ende = $("ende").value;
+    daten.pause = $("pause").value;
+    daten.beschreibung = $("taetigkeit").value;
+    daten.zeilen = [...document.querySelectorAll("#zeilen .zeile")].map(z => ({
+      nr: z.querySelector(".nr").value.trim(),
+      stunden: z.querySelector(".std").value,
+      text: z.querySelector(".txt").value,
+    })).filter(z => z.nr && z.stunden);
+  } else {
+    daten.von = $("von").value;
+    daten.bis = $("bis").value || $("von").value;
+  }
+
+  try {
+    const r = await fetch(F_SCHREIBEN, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(daten),
+    });
+    const d = await r.json();
+    if (d.ok) { melde("ok", "Übermittelt", d.meldung); zuruecksetzen(); }
+    else      { melde("err", "Nicht übermittelt", d.fehler || "Unbekannter Fehler."); }
+  } catch (e) {
+    melde("err", "Keine Verbindung", "Der Server war nicht erreichbar.");
+  }
+
+  $("senden").disabled = false;
+  $("senden").textContent = "Übermitteln";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function melde(typ, titel, text) {
+  $("meldung").innerHTML = typ
+    ? '<div class="melde ' + typ + '"><b>' + esc(titel) + '</b>' + esc(text) + '</div>' : "";
+}
+
+function zuruecksetzen() {
+  $("zeilen").innerHTML = "";
+  $("taetigkeit").value = "";
+  neueZeile();
+}
+
+// ---------- Start ----------
+const heute = new Date().toISOString().slice(0, 10);
+$("datum").value = heute;
+$("datum").max = heute;
+$("von").value = heute;
+$("bis").value = heute;
+
+["beginn", "ende", "pause"].forEach(id => $(id).addEventListener("input", rechne));
+$("plus").addEventListener("click", neueZeile);
+$("senden").addEventListener("click", senden);
+
+zeichneArt();
+umschalten();
+ladeNummern();
+rechne();
 </script>
 </body>
 </html>
