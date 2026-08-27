@@ -28,8 +28,27 @@
     }
     input:disabled,select:disabled,textarea:disabled{background:#f0f1f3;color:var(--muted)}
     textarea{resize:vertical;min-height:60px}
+
+    /* iOS gibt Datums- und Zeitfeldern eine eigene Mindestbreite und zentriert
+       den Text. Beides abschalten, sonst ragen sie aus ihrem Kasten heraus. */
+    input[type=date],input[type=time]{
+      -webkit-appearance:none;appearance:none;
+      min-width:0;max-width:100%;text-align:left;
+    }
+    select{-webkit-appearance:none;appearance:none;min-width:0;
+      background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),
+                       linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+      background-position:calc(100% - 16px) calc(50% + 2px),calc(100% - 11px) calc(50% + 2px);
+      background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:30px}
+
     .reihe{display:flex;gap:10px;margin-bottom:14px}
     .reihe>div{flex:1;min-width:0}
+
+    @media (max-width:400px){
+      .reihe{gap:7px}
+      input,select{padding:10px 9px}
+      select{padding-right:26px}
+    }
 
     .kopfzeile{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:24px}
     .kopfzeile .sub{margin:0}
