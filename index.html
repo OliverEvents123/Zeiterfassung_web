@@ -80,6 +80,8 @@
     .unten .stdfrei{text-align:center}
     .unten .txt{flex:1;min-width:0}
     .stdinfo{display:block;font-size:12px;color:var(--muted);margin:5px 2px 0;min-height:15px}
+    .extra{display:flex;gap:8px;margin-top:8px}
+    .extra select{flex:1;min-width:0;font-size:15px;padding:9px 10px}
 
     .vorschlag{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;background:var(--card);
       border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.10);
@@ -409,7 +411,8 @@ function anwenden() {
   $("bereits").innerHTML = b.length
     ? '<h2 style="margin-top:0">Bereits erfasst</h2><ul class="bestand">' + b.map(z =>
         '<li><span class="n">' + esc(z.nr) + '</span><span class="s">' + esc(z.stunden) + '</span>' +
-        '<span class="t">' + esc(z.text || nameZu(z.nr)) + '</span></li>').join("") +
+        '<span class="t">' + esc([z.text || nameZu(z.nr), z.kategorie, z.veranstaltung]
+            .filter(Boolean).join(" · ")) + '</span></li>').join("") +
       '</ul><h2>Ergänzen</h2>'
     : "";
 
@@ -449,7 +452,8 @@ function neueZeile() {
       '<input class="stdfrei" placeholder="1.30" inputmode="decimal" style="display:none">' +
       '<input class="txt" placeholder="Beschreibung">' +
     '</div>' +
-    '<small class="stdinfo"></small>';
+    '<small class="stdinfo"></small>' +
+    '<div class="extra"></div>';
   div.querySelector(".weg").addEventListener("click", () => { div.remove(); rechne(); });
   const sel = div.querySelector(".std");
   const frei = div.querySelector(".stdfrei");
@@ -486,12 +490,16 @@ function suche(feld, box, namensZeile) {
     box.style.display = treffer.length ? "block" : "none";
   }
   function uebernehmen(id) {
-    feld.value = id; namensZeile.textContent = nameZu(id); schliessen();
+    feld.value = id;
+    namensZeile.textContent = nameZu(id);
+    zusatzfelder(feld.closest(".zeile"), id);
+    schliessen();
   }
 
   feld.addEventListener("input", () => {
     const q = feld.value.trim().toLowerCase();
     namensZeile.textContent = nameZu(feld.value);
+    zusatzfelder(feld.closest(".zeile"), feld.value);
     if (!q) { treffer = []; schliessen(); return; }
     treffer = nummern.filter(a => a.id.toLowerCase().includes(q) || a.name.toLowerCase().includes(q)).slice(0, 12);
     markiert = treffer.length ? 0 : -1;
@@ -510,6 +518,25 @@ function suche(feld, box, namensZeile) {
     e.preventDefault(); uebernehmen(el.dataset.id);
   });
   feld.addEventListener("blur", () => setTimeout(schliessen, 120));
+}
+
+// Kategorie und Veranstaltung erscheinen nur, wenn die Kostenstelle sie hat
+function zusatzfelder(zeile, id) {
+  const box = zeile.querySelector(".extra");
+  const a = nummern.find(x => x.id === String(id).trim());
+  const kat = (a && a.kategorien) || [];
+  const ver = (a && a.veranstaltungen) || [];
+
+  if (!kat.length && !ver.length) { box.innerHTML = ""; return; }
+
+  const liste = (klasse, platzhalter, werte) =>
+    '<select class="' + klasse + '"><option value="">' + platzhalter + '</option>' +
+    werte.map(w => '<option value="' + esc(w) + '">' + esc(w) + '</option>').join("") +
+    '</select>';
+
+  box.innerHTML =
+    (kat.length ? liste("kat", "Kategorie…", kat) : "") +
+    (ver.length ? liste("ver", "Veranstaltung…", ver) : "");
 }
 
 // Auswahlliste in Viertelstunden bis 10 Stunden
@@ -582,6 +609,8 @@ async function senden() {
       nr: z.querySelector(".nr").value.trim(),
       stunden: zeileStunden(z),
       text: z.querySelector(".txt").value,
+      kategorie: (z.querySelector(".kat") || {}).value || "",
+      veranstaltung: (z.querySelector(".ver") || {}).value || "",
     })).filter(z => z.nr && z.stunden);
   } else {
     daten.von = $("von").value;
