@@ -76,8 +76,10 @@
       background:var(--card);color:var(--muted);cursor:pointer;font-size:17px;line-height:1}
     .nrname{display:block;font-size:12px;color:var(--akzent);margin:5px 2px 0;min-height:16px}
     .unten{display:flex;gap:8px;margin-top:10px}
-    .unten .std{flex:0 0 84px;text-align:center}
+    .unten .std,.unten .stdfrei{flex:0 0 106px;min-width:0}
+    .unten .stdfrei{text-align:center}
     .unten .txt{flex:1;min-width:0}
+    .stdinfo{display:block;font-size:12px;color:var(--muted);margin:5px 2px 0;min-height:15px}
 
     .vorschlag{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;background:var(--card);
       border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.10);
@@ -443,11 +445,31 @@ function neueZeile() {
     '</div>' +
     '<small class="nrname"></small>' +
     '<div class="unten">' +
-      '<input class="std" placeholder="1:30" inputmode="decimal">' +
+      '<select class="std">' + stundenOptionen() + '</select>' +
+      '<input class="stdfrei" placeholder="1.30" inputmode="decimal" style="display:none">' +
       '<input class="txt" placeholder="Beschreibung">' +
-    '</div>';
+    '</div>' +
+    '<small class="stdinfo"></small>';
   div.querySelector(".weg").addEventListener("click", () => { div.remove(); rechne(); });
-  div.querySelector(".std").addEventListener("input", rechne);
+  const sel = div.querySelector(".std");
+  const frei = div.querySelector(".stdfrei");
+  const info = div.querySelector(".stdinfo");
+
+  sel.addEventListener("change", () => {
+    if (sel.value === "_frei") {
+      sel.style.display = "none"; frei.style.display = ""; frei.focus();
+      info.textContent = "Format Stunden.Minuten — 1.30 sind 1 Std 30 Min";
+    }
+    rechne();
+  });
+
+  frei.addEventListener("input", () => {
+    const m = minuten(frei.value);
+    info.textContent = frei.value.trim()
+      ? (m ? "entspricht " + alsZeit(m) : "nicht lesbar — z. B. 1.30 für 1 Std 30 Min")
+      : "Format Stunden.Minuten — 1.30 sind 1 Std 30 Min";
+    rechne();
+  });
   suche(div.querySelector(".nr"), div.querySelector(".vorschlag"), div.querySelector(".nrname"));
   $("zeilen").appendChild(div);
   rechne();
@@ -490,12 +512,39 @@ function suche(feld, box, namensZeile) {
   feld.addEventListener("blur", () => setTimeout(schliessen, 120));
 }
 
+// Auswahlliste in Viertelstunden bis 10 Stunden
+function stundenOptionen() {
+  let o = '<option value="">Dauer…</option>';
+  for (let m = 15; m <= 600; m += 15) {
+    const w = Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0");
+    o += '<option value="' + w + '">' + w + " Std</option>";
+  }
+  return o + '<option value="_frei">andere…</option>';
+}
+
+// Liefert den eingestellten Wert einer Zeile — aus Liste oder freiem Feld
+function zeileStunden(z) {
+  const sel = z.querySelector(".std");
+  const frei = z.querySelector(".stdfrei");
+  if (sel.style.display === "none") return frei.value;
+  return sel.value === "_frei" ? "" : sel.value;
+}
+
 // ═══════════ Rechnen ═══════════
+// Zeitformat ist Stunden.Minuten — 1.30 sind 90 Minuten, nicht 78.
+// Punkt, Komma und Doppelpunkt gelten alle als Trennzeichen.
 function minuten(s) {
-  if (!s) return 0;
-  s = String(s).trim().replace(",", ".");
-  if (s.includes(":")) { const [h, m] = s.split(":"); return (parseInt(h,10)||0)*60 + (parseInt(m,10)||0); }
-  const d = parseFloat(s); return isNaN(d) ? 0 : Math.round(d * 60);
+  if (s === null || s === undefined) return 0;
+  const t = String(s).trim().replace(/[,.]/g, ":");
+  if (t === "") return 0;
+  if (t.includes(":")) {
+    const [a, b] = t.split(":");
+    const h = parseInt(a, 10) || 0;
+    const m = parseInt((b || "0").slice(0, 2), 10) || 0;
+    return h * 60 + m;
+  }
+  const h = parseInt(t, 10);
+  return isNaN(h) ? 0 : h * 60;
 }
 function alsZeit(min) {
   const v = min < 0 ? "-" : ""; min = Math.abs(min);
@@ -506,7 +555,7 @@ function rechne() {
   const arbeit = minuten($("ende").value) - minuten($("beginn").value) - minuten($("pause").value);
   let verteilt = 0;
   if (stand && stand.stand && stand.stand.zeilen) stand.stand.zeilen.forEach(z => verteilt += minuten(z.stunden));
-  document.querySelectorAll("#zeilen .std").forEach(i => verteilt += minuten(i.value));
+  document.querySelectorAll("#zeilen .zeile").forEach(z => verteilt += minuten(zeileStunden(z)));
   const rest = arbeit - verteilt;
 
   $("rest").className = "rest" + (rest < 0 ? " warn" : "");
@@ -531,7 +580,7 @@ async function senden() {
     daten.beschreibung = $("taetigkeit").value;
     daten.zeilen = [...document.querySelectorAll("#zeilen .zeile")].map(z => ({
       nr: z.querySelector(".nr").value.trim(),
-      stunden: z.querySelector(".std").value,
+      stunden: zeileStunden(z),
       text: z.querySelector(".txt").value,
     })).filter(z => z.nr && z.stunden);
   } else {
